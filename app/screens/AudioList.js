@@ -8,6 +8,7 @@ import { Audio } from "expo-av";
 import AudioListItem from "../components/AudioListItem";
 import Screen from "../components/Screen";
 import OptionModal from "../components/OptionModal";
+import { play, pause, resume } from "../misc/audioController";
 
 export default class AudioList extends Component {
   static contextType = AudioContext;
@@ -17,6 +18,9 @@ export default class AudioList extends Component {
 
     this.state = {
       optionModalVisible: false,
+      playbackObj: null,
+      soundObj: null,
+      currentAudio: {},
     };
 
     this.currentItem = {};
@@ -37,9 +41,47 @@ export default class AudioList extends Component {
     }
   );
 
-  handleAudio = (audio) => {
-    const playback = new Audio.Sound();
-    playback.loadAsync({ uri: audio.uri }, { shouldPlay: true });
+  handleAudio = async (audio) => {
+    // playing audio for the first time
+    if (!this.state.soundObj) {
+      const playback = new Audio.Sound();
+      // const status = await playback.loadAsync(
+      //   { uri: audio.uri },
+      //   { shouldPlay: true }
+      // );
+      const status = await play(playback, audio.uri);
+
+      return this.setState({
+        ...this.state,
+        currentAudio: audio,
+        playbackObj: playback,
+        soundObj: status,
+      });
+    }
+
+    // pause audio
+    if (this.state.soundObj.isLoaded && this.state.soundObj.isPlaying) {
+      const status = await pause(this.state.playbackObj);
+
+      return this.setState({
+        ...this.state,
+        soundObj: status,
+      });
+    }
+
+    // resume audio
+    if (
+      this.state.soundObj.isLoaded &&
+      !this.state.soundObj.isPlaying &&
+      this.state.currentAudio.id === audio.id
+    ) {
+      const status = await resume(this.state.playbackObj);
+
+      return this.setState({
+        ...this.state,
+        soundObj: status,
+      });
+    }
   };
 
   rowRenderer = (type, item) => {
@@ -62,13 +104,11 @@ export default class AudioList extends Component {
         {({ dataProvider }) => {
           return (
             <Screen>
-              {dataProvider && (
-                <RecyclerListView
-                  dataProvider={dataProvider}
-                  layoutProvider={this.layoutProvider}
-                  rowRenderer={this.rowRenderer}
-                />
-              )}
+              <RecyclerListView
+                dataProvider={dataProvider}
+                layoutProvider={this.layoutProvider}
+                rowRenderer={this.rowRenderer}
+              />
 
               <OptionModal
                 currentItem={this.currentItem}
